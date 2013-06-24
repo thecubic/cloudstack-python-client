@@ -33,11 +33,19 @@ class BaseClient(object):
         ).digest())
 
         query += '&signature=' + urllib.quote_plus(signature)
-
-        response = urllib2.urlopen(self.api + '?' + query)
-        decoded = json.loads(response.read())
-       
         propertyResponse = command.lower() + 'response'
+        try:
+            response = urllib2.urlopen(self.api + '?' + query)
+            decoded = json.loads(response.read())
+        except urllib2.HTTPError, hork:
+            decoded = json.loads(hork.read())
+            if hork.getcode() == 534:  # get CloudStack's error
+                if propertyResponse in decoded:
+                    raise RuntimeError("ERROR: " + decoded[propertyResponse]['errortext'])
+            else:
+                raise hork
+               
+        # v4?
         if not propertyResponse in decoded:
             if 'errorresponse' in decoded:
                 raise RuntimeError("ERROR: " + decoded['errorresponse']['errortext'])
